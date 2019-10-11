@@ -1,0 +1,21 @@
+if 1 < 2 {
+    print 123
+    print 456
+    print 1+2
+    print (2 * 3)
+    a = 10
+    b = 20
+    c float
+    d = true
+    a;b;c;d
+
+    if a == 10 {
+        e = "Hello World"
+    } else {
+        e = "Test"
+    }
+    print e
+
+}
+
+print 'Hi'

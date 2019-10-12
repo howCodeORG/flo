@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"bufio"
 	"flo/ast"
 	"flo/object"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // ast.Node
@@ -32,12 +34,12 @@ func callStackPush(o object.Object) {
 
 func callStackPop() object.Object {
 
-	value := callStack[len(callStack)-1]
-	callStack = callStack[:len(callStack)-1]
-
-	// fmt.Println("pop call stack: ", callStack)
-
-	return value
+	if len(callStack) > 0 {
+		value := callStack[len(callStack)-1]
+		callStack = callStack[:len(callStack)-1]
+		return value
+	}
+	return nil
 
 }
 
@@ -144,6 +146,83 @@ func addBuiltinOpen() {
 	}
 }
 
+func addBuiltinInput() {
+	environment[0]["input"] = &object.Function{
+		Name: "input",
+		Parameters: []ast.Noder{
+			&ast.Node{Type: "IDENT", Value: "text"},
+		},
+		Code: func(params ...ast.Noder) ast.Noder {
+
+			// Only expecting 1 parameter for the input() function
+
+			text := Eval(params[0])
+			fmt.Print(text)
+			reader := bufio.NewReader(os.Stdin)
+			input_text, err := reader.ReadString('\n')
+
+			if err != nil {
+				return &ast.Node{
+					Type:  "INT",
+					Value: "-1",
+				}
+			}
+			return &ast.Node{
+				Type:  "STRING",
+				Value: strings.TrimSuffix(input_text, "\n"),
+			}
+		},
+	}
+}
+
+func addBuiltinInteger() {
+	environment[0]["integer"] = &object.Function{
+		Name: "integer",
+		Parameters: []ast.Noder{
+			&ast.Node{Type: "IDENT", Value: "value"},
+		},
+		Code: func(params ...ast.Noder) ast.Noder {
+
+			// Only expecting 1 parameter for the input() function
+
+			val := Eval(params[0])
+
+			if val.Type() == object.STRING_OBJECT {
+				_, err := strconv.Atoi(strings.Split(val.String(), ".")[0])
+				if err != nil {
+					return &ast.Node{
+						Type:  "NIL",
+						Value: "nil",
+					}
+				}
+				return &ast.Node{
+					Type:  "INT",
+					Value: strings.Split(val.String(), ".")[0],
+				}
+			}
+
+			if val.Type() == object.FLOAT_OBJECT {
+				_, err := strconv.Atoi(strings.Split(val.String(), ".")[0])
+				if err != nil {
+					fmt.Println(err)
+					return &ast.Node{
+						Type:  "NIL",
+						Value: "nil",
+					}
+				}
+				return &ast.Node{
+					Type:  "INT",
+					Value: strings.Split(val.String(), ".")[0],
+				}
+			}
+			return &ast.Node{
+				Type:  "NIL",
+				Value: "nil",
+			}
+		},
+	}
+}
+
 func addBuiltins() {
 	// Built-in type() function
 	// Name: type
@@ -156,6 +235,18 @@ func addBuiltins() {
 	// Parameters: 2
 	// Returns: A string of the data from a file
 	addBuiltinOpen()
+
+	// Built-in input() function
+	// Name: input
+	// Parameters: 1
+	// Returns: A string from stdin
+	addBuiltinInput()
+
+	// Built-in integer() function
+	// Name: integer
+	// Parameters: 1
+	// Returns: An int object
+	addBuiltinInteger()
 }
 
 func Init() {
@@ -188,13 +279,16 @@ func Eval(node ast.Noder) object.Object {
 			return evalUnaryOp(n)
 		case *ast.BinaryOp:
 			return evalBinaryOp(n)
+		case *ast.TrinaryOp:
+			return evalTrinaryOp(n)
 		case *ast.Function:
 			return evalFunctionDeclaration(n)
 		}
 		return nil
 	}
-
-	return callStackPop()
+	//fmt.Println("node:", node, "callstack:", callStack)
+	// return callStackPop()
+	return nil
 }
 
 func evalBlock(node *ast.Block) object.Object {
@@ -236,7 +330,6 @@ func evalNode(node *ast.Node) object.Object {
 	if Error != "" {
 		return nil
 	}
-
 	switch node.Type {
 	case "INT":
 		value, err := strconv.Atoi(node.Value)
@@ -262,7 +355,7 @@ func evalNode(node *ast.Node) object.Object {
 		value, _ := getIdentifier(node.Value)
 		return value
 	default:
-		return &object.Void{}
+		return &object.Nil{}
 	}
 }
 
@@ -367,10 +460,16 @@ func unaryNotOp(o object.Object) object.Object {
 
 func unaryReturnOp(o object.Object) object.Object {
 
+	// fmt.Println("o:", o, "before:", callStack)
+
 	// Set returning flag to prevent any more code being executed
 	returnFlag = true
 	// Replace top of call stack with expression
-	callStack[len(callStack)-1] = o
+	// callStack[len(callStack)-1] = o
+	callStackPop()
+	callStackPush(o)
+	// fmt.Println("after:", callStack)
+
 	// Pop top of call stack
 	return o
 
@@ -408,6 +507,18 @@ func evalBinaryOp(node *ast.BinaryOp) object.Object {
 		return binaryAssignOp(node.Left, node.Right)
 	case "()":
 		return binaryFunctionOp(node.Left, node.Right)
+	case "==":
+		return binaryEqeqOp(node.Left, node.Right)
+	case "!=":
+		return binaryNteqOp(node.Left, node.Right)
+	case "<=":
+		return binaryLteqOp(node.Left, node.Right)
+	case ">=":
+		return binaryGteqOp(node.Left, node.Right)
+	case "<":
+		return binaryLtOp(node.Left, node.Right)
+	case ">":
+		return binaryGtOp(node.Left, node.Right)
 	default:
 		return nil
 	}
@@ -593,7 +704,7 @@ func binaryFunctionOp(name ast.Noder, params ast.Noder) object.Object {
 		decScope()
 
 		// Execute function
-		fn := Eval((declaredFunction.(*object.Function)).Code(functionParams...))
+		fn := Eval((callStackPop().(*object.Function)).Code(functionParams...))
 
 		// Update returning flag to false
 		returnFlag = false
@@ -602,11 +713,166 @@ func binaryFunctionOp(name ast.Noder, params ast.Noder) object.Object {
 
 		removeScope()
 		if fn == nil {
-			return &object.Void{}
+			if len(callStack) > 0 {
+				return callStack[len(callStack)-1]
+			}
+			return &object.Nil{}
 		}
 		return fn
 	}
 	setError(fmt.Sprintf("undeclared function"))
 	return nil
+
+}
+
+func binaryEqeqOp(l ast.Noder, r ast.Noder) object.Object {
+
+	left := Eval(l)
+	right := Eval(r)
+
+	if left.Type() == object.INTEGER_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Integer).Value == right.(*object.Integer).Value}
+	} else if left.Type() == object.FLOAT_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Float).Value != float64(right.(*object.Integer).Value)}
+	} else if left.Type() == object.INTEGER_OBJECT && right.Type() == object.FLOAT_OBJECT {
+		return &object.Bool{Value: float64(left.(*object.Integer).Value) == right.(*object.Float).Value}
+	} else if left.Type() == object.STRING_OBJECT && right.Type() == object.STRING_OBJECT {
+		return &object.Bool{Value: left.(*object.String).Value == right.(*object.String).Value}
+	} else if left.Type() == object.BOOLEAN_OBJECT && right.Type() == object.BOOLEAN_OBJECT {
+		return &object.Bool{Value: left.(*object.Bool).Value == right.(*object.Bool).Value}
+	} else {
+		setError(fmt.Sprintf("TypeError: unsupported type(s) for ==: '%s' and '%s'", left.Type(), right.Type()))
+		return nil
+	}
+
+}
+
+func binaryNteqOp(l ast.Noder, r ast.Noder) object.Object {
+
+	left := Eval(l)
+	right := Eval(r)
+
+	if left.Type() == object.INTEGER_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Integer).Value != right.(*object.Integer).Value}
+	} else if left.Type() == object.FLOAT_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Float).Value != float64(right.(*object.Integer).Value)}
+	} else if left.Type() == object.INTEGER_OBJECT && right.Type() == object.FLOAT_OBJECT {
+		return &object.Bool{Value: float64(left.(*object.Integer).Value) != right.(*object.Float).Value}
+	} else if left.Type() == object.BOOLEAN_OBJECT && right.Type() == object.BOOLEAN_OBJECT {
+		return &object.Bool{Value: left.(*object.Bool).Value != right.(*object.Bool).Value}
+	} else if left.Type() == object.STRING_OBJECT && right.Type() == object.STRING_OBJECT {
+		return &object.Bool{Value: left.(*object.String).Value != right.(*object.String).Value}
+	} else {
+		setError(fmt.Sprintf("TypeError: unsupported type(s) for !=: '%s' and '%s'", left.Type(), right.Type()))
+		return nil
+	}
+
+}
+
+func binaryLteqOp(l ast.Noder, r ast.Noder) object.Object {
+
+	left := Eval(l)
+	right := Eval(r)
+
+	if left.Type() == object.INTEGER_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Integer).Value <= right.(*object.Integer).Value}
+	} else if left.Type() == object.FLOAT_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Float).Value <= float64(right.(*object.Integer).Value)}
+	} else if left.Type() == object.INTEGER_OBJECT && right.Type() == object.FLOAT_OBJECT {
+		return &object.Bool{Value: float64(left.(*object.Integer).Value) <= right.(*object.Float).Value}
+	} else {
+		setError(fmt.Sprintf("TypeError: unsupported type(s) for <=: '%s' and '%s'", left.Type(), right.Type()))
+		return nil
+	}
+
+}
+
+func binaryGteqOp(l ast.Noder, r ast.Noder) object.Object {
+
+	left := Eval(l)
+	right := Eval(r)
+
+	if left.Type() == object.INTEGER_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Integer).Value >= right.(*object.Integer).Value}
+	} else if left.Type() == object.FLOAT_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Float).Value >= float64(right.(*object.Integer).Value)}
+	} else if left.Type() == object.INTEGER_OBJECT && right.Type() == object.FLOAT_OBJECT {
+		return &object.Bool{Value: float64(left.(*object.Integer).Value) >= right.(*object.Float).Value}
+	} else {
+		setError(fmt.Sprintf("TypeError: unsupported type(s) for >=: '%s' and '%s'", left.Type(), right.Type()))
+		return nil
+	}
+
+}
+
+func binaryLtOp(l ast.Noder, r ast.Noder) object.Object {
+
+	left := Eval(l)
+	right := Eval(r)
+
+	if left.Type() == object.INTEGER_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Integer).Value < right.(*object.Integer).Value}
+	} else if left.Type() == object.FLOAT_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Float).Value < float64(right.(*object.Integer).Value)}
+	} else if left.Type() == object.INTEGER_OBJECT && right.Type() == object.FLOAT_OBJECT {
+		return &object.Bool{Value: float64(left.(*object.Integer).Value) < right.(*object.Float).Value}
+	} else {
+		setError(fmt.Sprintf("TypeError: unsupported type(s) for <: '%s' and '%s'", left.Type(), right.Type()))
+		return nil
+	}
+
+}
+
+func binaryGtOp(l ast.Noder, r ast.Noder) object.Object {
+
+	left := Eval(l)
+	right := Eval(r)
+
+	if left.Type() == object.INTEGER_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Integer).Value > right.(*object.Integer).Value}
+	} else if left.Type() == object.FLOAT_OBJECT && right.Type() == object.INTEGER_OBJECT {
+		return &object.Bool{Value: left.(*object.Float).Value > float64(right.(*object.Integer).Value)}
+	} else if left.Type() == object.INTEGER_OBJECT && right.Type() == object.FLOAT_OBJECT {
+		return &object.Bool{Value: float64(left.(*object.Integer).Value) > right.(*object.Float).Value}
+	} else {
+		setError(fmt.Sprintf("TypeError: unsupported type(s) for >: '%s' and '%s'", left.Type(), right.Type()))
+		return nil
+	}
+
+}
+
+func evalTrinaryOp(node *ast.TrinaryOp) object.Object {
+
+	if Error != "" {
+		return nil
+	}
+
+	switch node.Type {
+	case "if":
+		return trinaryIfOp(Eval(node.Condition), node.If, node.Else)
+	default:
+		return nil
+	}
+}
+
+func trinaryIfOp(obj object.Object, if_part ast.Noder, else_part ast.Noder) object.Object {
+
+	if obj == nil {
+		return nil
+	}
+
+	if obj.Type() == object.BOOLEAN_OBJECT {
+
+		if (obj.(*object.Bool)).Value == true {
+			return Eval(if_part)
+		} else {
+
+			return Eval(else_part)
+		}
+
+	} else {
+		setError(fmt.Sprintf("if condition must evaluate to bool"))
+		return nil
+	}
 
 }

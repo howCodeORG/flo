@@ -122,7 +122,7 @@ func (p *Parser) program() ast.Noder {
 
 	if p.currentToken.Type == token.EOF {
 		p.nextToken()
-		return &ast.Node{Type: "VOID", Value: "void"}
+		return &ast.Node{Type: "NIL", Value: "nil"}
 	}
 
 	if p.currentToken.Type == token.LBRACE {
@@ -131,7 +131,7 @@ func (p *Parser) program() ast.Noder {
 		for p.currentToken.Type == token.SEMICOLON {
 			p.nextToken()
 			pro.Next = p.program()
-			if pro.Next != nil && pro.Next.String() != "void" {
+			if pro.Next != nil && pro.Next.String() != "nil" {
 				pro = &ast.Statement{Value: pro}
 			} else {
 				pro.Next = nil
@@ -145,7 +145,7 @@ func (p *Parser) program() ast.Noder {
 		for p.currentToken.Type == token.SEMICOLON {
 			p.nextToken()
 			pro.Next = p.program()
-			if pro.Next != nil && pro.Next.String() != "void" {
+			if pro.Next != nil && pro.Next.String() != "nil" {
 				pro = &ast.Statement{Value: pro}
 			} else {
 				pro.Next = nil
@@ -192,16 +192,37 @@ func (p *Parser) statement() ast.Noder {
 		return p.assignment()
 	} else if p.currentToken.Type == token.K_FUNC {
 		return p.funcDeclaration()
+	} else if p.currentToken.Type == token.K_IF {
+		return p.ifStatement()
 	} else if p.currentToken.Type == token.K_PRINT {
 		return p.printStmt()
 	} else if p.currentToken.Type == token.K_RETURN {
 		return p.returnStmt()
-	} else if p.currentToken.Type == token.IDENT {
-		p.foundError(p.syntaxError("invalid keyword '" + p.currentToken.Value + "'"))
-		return nil
 	} else {
 		return p.expression()
 	}
+}
+
+// if_statement               : IF condition block
+//                            | IF condition block else block
+func (p *Parser) ifStatement() ast.Noder {
+
+	if_stmt := &ast.TrinaryOp{}
+	if_stmt.Type = "if"
+
+	p.nextToken()
+
+	if_stmt.Condition = p.expression()
+
+	p.expectedToken([]string{token.LBRACE}, p.syntaxError("expected '{'"))
+	if_stmt.If = p.block()
+
+	if p.currentToken.Type == token.K_ELSE {
+		p.nextToken()
+		if_stmt.Else = p.block()
+	}
+
+	return if_stmt
 }
 
 // returnStmt : Return expr
@@ -527,6 +548,6 @@ func (p *Parser) atom() ast.Noder {
 
 	}
 
-	return &ast.Node{Type: "VOID", Value: "void"}
+	return &ast.Node{Type: "NIL", Value: "nil"}
 
 }

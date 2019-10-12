@@ -19,8 +19,33 @@ func pow(a,b) {
     return a ** b
 }
 
-print add(2,4)
+func add2(a,b) {
+    if b == 0 {
+        return a
+    }
+    return add2(a+1, b-1)
+}
+
+func factorial(n) {
+    if n == 0 {
+        return 1
+    }
+    return n * factorial(n-1)
+}
+func x() {
+    func y() {
+        func z() {
+            return "this value is from z()"
+        }
+        return z()
+    }
+    return y()
+}
+print x()
+/* print factorial(5) */
+/* print add2(3,5) */
+/* print add(2,4)
 print sub(2,4)
 print mul(2,4)
 print div(2,4)
-print pow(2,4)
+print pow(2,4) */

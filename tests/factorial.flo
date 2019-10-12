@@ -1,0 +1,15 @@
+
+// Simple factorial function
+func factorial(n) {
+    if n == 0 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+// Ask user for their choice
+choice = input("Enter a number, see the factorial: ")
+// Convert their choice from a string to an int
+choice = integer(choice)
+// Show the user their answer
+print factorial(choice)

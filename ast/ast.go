@@ -10,6 +10,7 @@ type Noder interface {
 // ast.Statement
 // ast.UnaryOp
 // ast.BinaryOp
+// ast.TrinaryOp
 // ast.Function
 // ast.Block
 
@@ -95,6 +96,33 @@ func (b *BinaryOp) String() string {
 	}
 
 	return "( " + b.Operator + " " + left + " " + right + " )"
+}
+
+// ast.TrinaryOp
+type TrinaryOp struct {
+	Type      string
+	Condition Noder
+	If        Noder
+	Else      Noder
+}
+
+func (t *TrinaryOp) String() string {
+
+	condition := "<nil>"
+	if_part := "<nil>"
+	else_part := "<nil>"
+
+	if t.Condition != nil {
+		condition = t.Condition.String()
+	}
+	if t.If != nil {
+		if_part = t.If.String()
+	}
+	if t.Else != nil {
+		else_part = t.Else.String()
+	}
+
+	return "( " + t.Type + ", " + condition + ", " + if_part + ", " + else_part + " )"
 }
 
 // ast.Function

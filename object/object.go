@@ -16,19 +16,19 @@ const (
 	BOOLEAN_OBJECT  = "bool"
 	STRING_OBJECT   = "string"
 	FUNCTION_OBJECT = "func"
-	VOID_OBJECT     = "void"
+	NIL_OBJECT      = "nil"
 )
 
-// VOID OBJECT
-type Void struct {
+// NIL OBJECT
+type Nil struct {
 }
 
-func (v *Void) Type() string {
-	return VOID_OBJECT
+func (n *Nil) Type() string {
+	return NIL_OBJECT
 }
 
-func (v *Void) String() string {
-	return fmt.Sprintf("void")
+func (n *Nil) String() string {
+	return fmt.Sprintf("nil")
 }
 
 // INTEGER OBJECT

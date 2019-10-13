@@ -25,6 +25,7 @@ var environment []env
 var callStack []object.Object
 var scope int
 var returnFlag bool
+var breakFlag bool
 var Error string
 
 func callStackPush(o object.Object) {
@@ -76,7 +77,8 @@ func foundError() bool {
 
 func addBuiltinType() {
 	environment[0]["type"] = &object.Function{
-		Name: "type",
+		Name:    "type",
+		Builtin: true,
 		Parameters: []ast.Noder{
 			&ast.Node{Type: "IDENT", Value: "var"},
 		},
@@ -101,7 +103,8 @@ func addBuiltinType() {
 
 func addBuiltinOpen() {
 	environment[0]["open"] = &object.Function{
-		Name: "open",
+		Name:    "open",
+		Builtin: true,
 		Parameters: []ast.Noder{
 			&ast.Node{Type: "IDENT", Value: "filename"},
 			// &ast.Node{Type: "IDENT", Value: "mode"},
@@ -148,7 +151,8 @@ func addBuiltinOpen() {
 
 func addBuiltinInput() {
 	environment[0]["input"] = &object.Function{
-		Name: "input",
+		Name:    "input",
+		Builtin: true,
 		Parameters: []ast.Noder{
 			&ast.Node{Type: "IDENT", Value: "text"},
 		},
@@ -175,17 +179,23 @@ func addBuiltinInput() {
 	}
 }
 
-func addBuiltinInteger() {
-	environment[0]["integer"] = &object.Function{
-		Name: "integer",
+func addBuiltinInt() {
+	environment[0]["int"] = &object.Function{
+		Name:    "int",
+		Builtin: true,
 		Parameters: []ast.Noder{
 			&ast.Node{Type: "IDENT", Value: "value"},
 		},
 		Code: func(params ...ast.Noder) ast.Noder {
-
 			// Only expecting 1 parameter for the input() function
-
 			val := Eval(params[0])
+
+			if val.Type() == object.INTEGER_OBJECT {
+				return &ast.Node{
+					Type:  "INT",
+					Value: val.String(),
+				}
+			}
 
 			if val.Type() == object.STRING_OBJECT {
 				_, err := strconv.Atoi(strings.Split(val.String(), ".")[0])
@@ -242,11 +252,11 @@ func addBuiltins() {
 	// Returns: A string from stdin
 	addBuiltinInput()
 
-	// Built-in integer() function
-	// Name: integer
+	// Built-in int() function
+	// Name: int
 	// Parameters: 1
 	// Returns: An int object
-	addBuiltinInteger()
+	addBuiltinInt()
 }
 
 func Init() {
@@ -267,20 +277,23 @@ func Eval(node ast.Noder) object.Object {
 	}
 
 	if returnFlag == false {
-
 		switch n := node.(type) {
 		case *ast.Block:
 			return evalBlock(n)
 		case *ast.Node:
 			return evalNode(n)
+		case *ast.List:
+			return evalList(n)
 		case *ast.Statement:
 			return evalStatement(n)
 		case *ast.UnaryOp:
 			return evalUnaryOp(n)
 		case *ast.BinaryOp:
 			return evalBinaryOp(n)
-		case *ast.TrinaryOp:
-			return evalTrinaryOp(n)
+		case *ast.IfStatement:
+			return evalIfStatement(n)
+		case *ast.ForStatement:
+			return evalForStatement(n)
 		case *ast.Function:
 			return evalFunctionDeclaration(n)
 		}
@@ -330,6 +343,7 @@ func evalNode(node *ast.Node) object.Object {
 	if Error != "" {
 		return nil
 	}
+
 	switch node.Type {
 	case "INT":
 		value, err := strconv.Atoi(node.Value)
@@ -382,18 +396,31 @@ func evalFunctionDeclaration(node *ast.Function) object.Object {
 	parameters := node.Parameters
 	code := node.Body
 
-	environment[scope][name] = &object.Function{Name: name, Parameters: parameters.Values, Code: func(params ...ast.Noder) ast.Noder { return Eval(code) }}
+	func_scope := scope
 
-	return nil
+	// Anonymous functions are accessible from the global scope
+	// because it makes the implementation easier and
+	// nobody can access them directly anyway due
+	// to '@' being illegal in function names.
+	if name[0] == '@' {
+		func_scope = 0
+	}
+
+	environment[func_scope][name] = &object.Function{Builtin: false, Name: name, Parameters: parameters.Values, Code: func(params ...ast.Noder) ast.Noder { return Eval(code) }}
+
+	return environment[func_scope][name]
 }
 
-func evalList(node *ast.List) []ast.Noder {
+func evalList(node *ast.List) object.Object {
 
 	if Error != "" {
 		return nil
 	}
-
-	return node.Values
+	l := &object.List{}
+	for _, item := range node.Values {
+		l.Values = append(l.Values, Eval(item))
+	}
+	return l
 }
 
 func evalUnaryOp(node *ast.UnaryOp) object.Object {
@@ -411,6 +438,8 @@ func evalUnaryOp(node *ast.UnaryOp) object.Object {
 		return unaryNotOp(Eval(node.Value))
 	case "return":
 		return unaryReturnOp(Eval(node.Value))
+	case "break":
+		return unaryBreakOp()
 	case "print":
 		return unaryPrintOp(Eval(node.Value))
 	default:
@@ -475,6 +504,15 @@ func unaryReturnOp(o object.Object) object.Object {
 
 }
 
+func unaryBreakOp() object.Object {
+
+	// Set break flag to exit loops
+	breakFlag = true
+
+	return nil
+
+}
+
 func unaryPrintOp(o object.Object) object.Object {
 
 	if o != nil {
@@ -507,6 +545,8 @@ func evalBinaryOp(node *ast.BinaryOp) object.Object {
 		return binaryAssignOp(node.Left, node.Right)
 	case "()":
 		return binaryFunctionOp(node.Left, node.Right)
+	case "[]":
+		return binaryListOp(node.Left, node.Right)
 	case "==":
 		return binaryEqeqOp(node.Left, node.Right)
 	case "!=":
@@ -674,8 +714,18 @@ func binaryAssignOp(left ast.Noder, right ast.Noder) object.Object {
 
 func binaryFunctionOp(name ast.Noder, params ast.Noder) object.Object {
 
+	function := Eval(name)
+
+	if function.Type() != object.FUNCTION_OBJECT {
+		setError(fmt.Sprintf("TypeError: can't use () operator on type: %s", function.Type()))
+		return nil
+	}
+
+	// fmt.Println("env", environment)
+
 	// Get function name first
-	functionName := name.String()
+	functionName := (function.(*object.Function)).Name
+
 	// Get params
 	functionParams := []ast.Noder{}
 	if params != nil {
@@ -698,14 +748,23 @@ func binaryFunctionOp(name ast.Noder, params ast.Noder) object.Object {
 
 		for i, _ := range declaredParams {
 			// fmt.Println(declaredParams[i], functionParams[i])
-			environment[scope][declaredParams[i].String()] = Eval(functionParams[i])
+			if (declaredFunction.(*object.Function)).Builtin == false {
+				environment[scope][declaredParams[i].String()] = Eval(functionParams[i])
+			}
 		}
 
 		decScope()
 
 		// Execute function
-		fn := Eval((callStackPop().(*object.Function)).Code(functionParams...))
-
+		// fmt.Println("callstack before:", callStack)
+		toCall := callStackPop()
+		var fn object.Object
+		if toCall.Type() == object.FUNCTION_OBJECT {
+			fn = Eval((toCall.(*object.Function)).Code(functionParams...))
+		} else {
+			fn = toCall
+		}
+		// fmt.Println("callstack after:", callStack)
 		// Update returning flag to false
 		returnFlag = false
 
@@ -721,6 +780,32 @@ func binaryFunctionOp(name ast.Noder, params ast.Noder) object.Object {
 		return fn
 	}
 	setError(fmt.Sprintf("undeclared function"))
+	return nil
+
+}
+
+func binaryListOp(name ast.Noder, param ast.Noder) object.Object {
+
+	list_name := name.String()
+	list_param := Eval(param)
+	list_var, ok := getIdentifier(list_name)
+	if ok == true {
+		index, err := strconv.Atoi(list_param.String())
+		if err != nil {
+			setError(fmt.Sprintf("something went wrong"))
+			return nil
+		}
+
+		list_vals := (list_var.(*object.List)).Values
+
+		if index < 0 || index > len(list_vals)-1 {
+			setError(fmt.Sprintf("IndexError: out of range"))
+			return nil
+		}
+		return list_vals[index]
+
+	}
+
 	return nil
 
 }
@@ -841,21 +926,13 @@ func binaryGtOp(l ast.Noder, r ast.Noder) object.Object {
 
 }
 
-func evalTrinaryOp(node *ast.TrinaryOp) object.Object {
+func evalIfStatement(node *ast.IfStatement) object.Object {
 
 	if Error != "" {
 		return nil
 	}
 
-	switch node.Type {
-	case "if":
-		return trinaryIfOp(Eval(node.Condition), node.If, node.Else)
-	default:
-		return nil
-	}
-}
-
-func trinaryIfOp(obj object.Object, if_part ast.Noder, else_part ast.Noder) object.Object {
+	obj := Eval(node.Condition)
 
 	if obj == nil {
 		return nil
@@ -864,15 +941,100 @@ func trinaryIfOp(obj object.Object, if_part ast.Noder, else_part ast.Noder) obje
 	if obj.Type() == object.BOOLEAN_OBJECT {
 
 		if (obj.(*object.Bool)).Value == true {
-			return Eval(if_part)
+			return Eval(node.If)
 		} else {
 
-			return Eval(else_part)
+			return Eval(node.Else)
 		}
 
 	} else {
 		setError(fmt.Sprintf("if condition must evaluate to bool"))
 		return nil
 	}
+}
+
+func evalForStatement(node *ast.ForStatement) object.Object {
+
+	if foundError() {
+		return nil
+	}
+
+	// Normally scope is increased when we enter a block and decreased when we leave a block,
+	// delimited by '{' and '}'. If-statements and for-loops require their condition variables
+	// be readable and modifiable from within their blocks.
+	// Ex. if x == 1 { x = x + 1; print x }
+	//               ^
+	// Scope normally starts here, meaning the 'x' inside the braces is a different 'x' to the one
+	// being tested.
+	// We need to move the scope to here:
+	//     if x == 1 { x = x + 1; print x}
+	//        ^
+	// We do that by incrementing the 'scopeLevel' variable here, and decrementing it once we exit the
+	// if-statement or for-loop.
+
+	// Determine what kind of loop we're evaluating first
+	if node.Condition == nil {
+		// This loop corresponds to parser rule 3 aka the empty for loop, 'for {}'
+		// Semantically this loop is equivalent to 'for true {}'
+		for true {
+			Eval(node.Body)
+			if returnFlag == true || breakFlag == true {
+				breakFlag = false
+				break
+			}
+		}
+	} else {
+		// This loop could be rule 1 or rule 2
+		// rule 1: for <condition> <block>
+		// rule 2: for <init> ';' <condition> ';' <post> <block>
+
+		// Check if init is nil
+		if node.Init == nil {
+
+			// If this is true, we're using rule 1, otherwise rule 2
+			// Check condition is true
+			newScope()
+			for Eval(node.Condition).(*object.Bool).Value == true {
+				decScope()
+				Eval(node.Body)
+				incScope()
+				if returnFlag == true || breakFlag == true {
+					breakFlag = false
+					break
+				}
+			}
+			removeScope()
+
+		} else {
+
+			// Rule 2
+			// Evaluate Init before the loop
+			newScope()
+			Eval(node.Init)
+			decScope()
+			// Evaluate Condition before loop
+			// Evaluate Post after each loop iteration
+
+			incScope()
+			for Eval(node.Condition).(*object.Bool).Value == true {
+				// Evaluate body of loop
+				decScope()
+				Eval(node.Body)
+
+				// Now evaluate Post
+				incScope()
+				if returnFlag == true || breakFlag == true {
+					breakFlag = false
+					break
+				}
+				Eval(node.Post)
+
+			}
+			removeScope()
+		}
+
+	}
+
+	return nil
 
 }

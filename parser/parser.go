@@ -4,6 +4,7 @@ import (
 	"flo/ast"
 	"flo/lexer"
 	"flo/token"
+	// "fmt"
 	"strconv"
 )
 
@@ -14,14 +15,16 @@ type Parser struct {
 	currentToken   token.Token
 	previousToken  token.Token
 	lookaheadToken token.Token
+	anonFuncCount  int
 }
 
 func New(l *lexer.Lexer) *Parser {
 
 	p := &Parser{
-		l:          l,
-		errors:     []string{},
-		needToSync: false,
+		l:             l,
+		errors:        []string{},
+		needToSync:    false,
+		anonFuncCount: 0,
 	}
 	p.nextToken()
 	p.nextToken()
@@ -186,28 +189,35 @@ func (p *Parser) block() ast.Noder {
 //                            | for_statement
 //                            | func_declaration
 //                            | print_statement
+//							  | return_statement
+//							  | break_statement
 //                            | expression
 func (p *Parser) statement() ast.Noder {
 	if p.peek().Type == token.ASSIGN || p.peek().Type == token.COMMA {
 		return p.assignment()
-	} else if p.currentToken.Type == token.K_FUNC {
+	} else if p.currentToken.Type == token.K_FUNC && p.peek().Type != token.LPAREN {
 		return p.funcDeclaration()
 	} else if p.currentToken.Type == token.K_IF {
 		return p.ifStatement()
+	} else if p.currentToken.Type == token.K_FOR {
+		return p.forStatement()
 	} else if p.currentToken.Type == token.K_PRINT {
 		return p.printStmt()
 	} else if p.currentToken.Type == token.K_RETURN {
 		return p.returnStmt()
+	} else if p.currentToken.Type == token.K_BREAK {
+		return p.breakStmt()
 	} else {
 		return p.expression()
 	}
 }
 
 // if_statement               : IF condition block
+//							  : IF condition block else if_statement
 //                            | IF condition block else block
 func (p *Parser) ifStatement() ast.Noder {
 
-	if_stmt := &ast.TrinaryOp{}
+	if_stmt := &ast.IfStatement{}
 	if_stmt.Type = "if"
 
 	p.nextToken()
@@ -219,19 +229,91 @@ func (p *Parser) ifStatement() ast.Noder {
 
 	if p.currentToken.Type == token.K_ELSE {
 		p.nextToken()
-		if_stmt.Else = p.block()
+		if p.currentToken.Type == token.K_IF {
+			if_stmt.Else = p.ifStatement()
+		} else {
+			if_stmt.Else = p.block()
+		}
 	}
 
 	return if_stmt
 }
 
-// returnStmt : Return expr
+// for_statement : FOR (expression) block
+//               | FOR (init ';' expression ';' post) block
+//               | FOR block
+func (p *Parser) forStatement() ast.Noder {
+
+	for_stmt := &ast.ForStatement{}
+
+	p.nextToken()
+
+	for_stmt.Init = p.forInit()
+	if for_stmt.Init == nil {
+		if p.currentToken.Type == token.LBRACE {
+			// Rule 3
+			for_stmt.Condition = &ast.Node{Type: token.BOOL, Value: "true"}
+			for_stmt.Body = p.block()
+
+		} else {
+			// Rule 1
+			for_stmt.Condition = p.expression()
+			if p.currentToken.Type == token.SEMICOLON {
+				p.nextToken()
+			}
+			p.expectedToken([]string{token.LBRACE}, p.syntaxError("expecting '{' after expression"))
+			for_stmt.Body = p.block()
+		}
+	} else {
+		// Rule 2
+		p.expectedToken([]string{token.SEMICOLON}, p.syntaxError("expecting ';' after init"))
+		p.nextToken()
+
+		for_stmt.Condition = p.expression()
+		p.expectedToken([]string{token.SEMICOLON}, p.syntaxError("expecting ';' after condition"))
+		p.nextToken()
+
+		for_stmt.Post = p.forPost()
+		if p.currentToken.Type == token.SEMICOLON {
+			p.nextToken()
+		}
+		p.expectedToken([]string{token.LBRACE}, p.syntaxError("expecting '{' after post-condition"))
+
+		for_stmt.Body = p.block()
+	}
+
+	return for_stmt
+
+}
+
+// init : assignment
+func (p *Parser) forInit() ast.Noder {
+	if p.currentToken.Type == token.IDENT && p.peek().Type == token.ASSIGN {
+		return p.assignment()
+	}
+	return nil
+}
+
+// post : assignment
+func (p *Parser) forPost() ast.Noder {
+	return p.assignment()
+}
+
+// return_stmt : Return expr
 func (p *Parser) returnStmt() ast.Noder {
 
 	p.nextToken()
 	value := p.expression()
 	// p.nextToken()
 	return &ast.UnaryOp{Operator: "return", Value: value}
+
+}
+
+// break_stmt : Break
+func (p *Parser) breakStmt() ast.Noder {
+
+	p.nextToken()
+	return &ast.UnaryOp{Operator: "break", Value: nil}
 
 }
 
@@ -274,12 +356,13 @@ func (p *Parser) funcDeclaration() ast.Noder {
 func (p *Parser) expressionList() ast.Noder {
 
 	list := &ast.List{}
-	// expression
-	//if p.currentToken.Type == token.IDENT {
 
+	// expression
 	list.Values = append(list.Values, p.expression())
 
-	//}
+	if p.currentToken.Type == token.RBRACK {
+		p.nextToken()
+	}
 
 	// ( ',' expression )*
 	for p.currentToken.Type == token.COMMA {
@@ -489,28 +572,57 @@ func (p *Parser) identifierList() ast.Noder {
 }
 
 // atomIdentifier : Identifier
-//                | Identifier '(' expressionList? ')'
+//                | Identifier ( '(' expressionList? ')' )+
+//                | Identifier ( '[' expression ']' )+
 func (p *Parser) atomIdentifier() ast.Noder {
 
 	if p.peek().Type == token.LPAREN {
 
-		atom := &ast.BinaryOp{Operator: "()"}
+		atom := &ast.BinaryOp{}
+		atom.Left = &ast.Node{Type: token.IDENT, Value: p.currentToken.Value}
+		// Identifier
+		p.nextToken()
+		for p.currentToken.Type == token.LPAREN {
+			atom.Operator = "()"
+			// (
+			p.nextToken()
+			// expressionList?
+			if p.currentToken.Type != token.RPAREN {
+				atom.Right = p.expressionList()
+
+				p.expectedToken([]string{token.RPAREN}, p.syntaxError("invalid syntax, expecting ')'"))
+				p.nextToken()
+			} else {
+				p.nextToken()
+			}
+			atom = &ast.BinaryOp{Left: atom}
+		}
+
+		return atom.Left
+	} else if p.peek().Type == token.LBRACK {
+
+		atom := &ast.BinaryOp{}
 		atom.Left = &ast.Node{Type: p.currentToken.Type, Value: p.currentToken.Value}
 		// Identifier
 		p.nextToken()
-		// (
-		p.nextToken()
-		// expressionList?
-		if p.currentToken.Type != token.RPAREN {
-			atom.Right = p.expressionList()
+		for p.currentToken.Type == token.LBRACK {
+			atom.Operator = "[]"
+			// [
+			p.nextToken()
+			// expression
+			if p.currentToken.Type != token.RBRACK {
+				atom.Right = p.expression()
 
-			p.expectedToken([]string{token.RPAREN}, p.syntaxError("invalid syntax, expecting ')'"))
-			p.nextToken()
-		} else {
-			p.nextToken()
+				p.expectedToken([]string{token.RBRACK}, p.syntaxError("invalid syntax, expecting ']'"))
+				p.nextToken()
+			} else {
+				p.unexpectedToken([]string{token.RBRACK}, p.syntaxError("invalid syntax, unexpected ']'"))
+				p.nextToken()
+			}
+			atom = &ast.BinaryOp{Left: atom}
 		}
 
-		return atom
+		return atom.Left
 	}
 
 	p.expectedToken([]string{token.IDENT}, p.syntaxError("expected identifier after "+p.previousToken.Value))
@@ -521,13 +633,89 @@ func (p *Parser) atomIdentifier() ast.Noder {
 
 }
 
-// atom : atomSimple | atomBool | atomParens | atomIdentifier
+// atomAnonFunc : Func '(' parameterList? ')' block ( '(' expressionList? ')' )+
+func (p *Parser) atomAnonFunc() ast.Noder {
+
+	p.nextToken()
+
+	function := &ast.Function{}
+
+	function.Name = "@func" + strconv.FormatInt(int64(p.anonFuncCount), 10)
+	p.anonFuncCount++
+
+	p.expectedToken([]string{token.LPAREN}, p.syntaxError("expected ("))
+	p.nextToken()
+
+	// parameterList?
+	if p.currentToken.Type != token.RPAREN {
+		function.Parameters = *(p.identifierList()).(*ast.List)
+	}
+
+	p.expectedToken([]string{token.RPAREN}, p.syntaxError("expected )"))
+	p.nextToken()
+
+	function.Body = p.block()
+
+	if p.currentToken.Type == token.LPAREN {
+		atom := &ast.BinaryOp{}
+		atom.Left = function
+
+		for p.currentToken.Type == token.LPAREN {
+			atom.Operator = "()"
+			// (
+			p.nextToken()
+			// expressionList?
+			if p.currentToken.Type != token.RPAREN {
+				atom.Right = p.expressionList()
+
+				p.expectedToken([]string{token.RPAREN}, p.syntaxError("invalid syntax, expecting ')'"))
+				p.nextToken()
+			} else {
+				p.nextToken()
+			}
+			atom = &ast.BinaryOp{Left: atom}
+		}
+		return atom.Left
+	}
+
+	return function
+
+}
+
+// atomList : '[' (expression ( ',' expression )*)? ']'
+func (p *Parser) atomList() ast.Noder {
+
+	list := &ast.List{}
+
+	p.nextToken()
+
+	if p.currentToken.Type != token.RBRACK {
+
+		list.Values = append(list.Values, p.expression())
+
+		if p.currentToken.Type == token.RBRACK {
+			p.nextToken()
+		}
+		// ( ',' expression )*
+		for p.currentToken.Type == token.COMMA {
+			p.nextToken()
+			list.Values = append(list.Values, p.expression())
+		}
+
+		p.expectedToken([]string{token.RBRACK}, p.syntaxError("expecting ']'"))
+
+	}
+	return list
+
+}
+
+// atom : atomSimple | atomBool | atomParens | atomIdentifier | atomAnonFunc | atomList
 func (p *Parser) atom() ast.Noder {
 
 	p.expectedToken([]string{
 		token.IDENT, token.INT, token.STRING, token.FLOAT, // type tokens
-		token.K_TRUE, token.K_FALSE, // keyword tokens
-		token.LPAREN, token.RBRACE}, p.syntaxError("found '"+p.currentToken.Value+"'"))
+		token.K_TRUE, token.K_FALSE, token.K_FUNC, token.K_INT, // keyword tokens
+		token.LPAREN, token.RBRACE, token.LBRACK}, p.syntaxError("found '"+p.currentToken.Value+"'"))
 
 	if p.currentToken.Type == token.STRING ||
 		p.currentToken.Type == token.FLOAT ||
@@ -539,12 +727,20 @@ func (p *Parser) atom() ast.Noder {
 
 		return p.atomBool()
 
-	} else if p.currentToken.Type == token.IDENT {
+	} else if p.currentToken.Type == token.IDENT ||
+		p.currentToken.Type == token.K_INT {
 		return p.atomIdentifier()
+
+	} else if p.currentToken.Type == token.K_FUNC {
+		return p.atomAnonFunc()
 
 	} else if p.currentToken.Type == token.LPAREN {
 
 		return p.atomParens()
+
+	} else if p.currentToken.Type == token.LBRACK {
+
+		return p.atomList()
 
 	}
 

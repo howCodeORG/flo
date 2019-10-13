@@ -1,0 +1,17 @@
+
+func div(a,b) {
+    if a == 0 {
+        return 0
+    }
+    return 1 + div(a-b,b)
+}
+
+
+// Ask user for their choice
+a = input("Enter first number: ")
+b = input("Enter second number: ")
+// Convert their choice from a string to an int
+a = int(a)
+b = int(b)
+// Show the user their answer
+print div(a,b)

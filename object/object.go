@@ -16,6 +16,7 @@ const (
 	BOOLEAN_OBJECT  = "bool"
 	STRING_OBJECT   = "string"
 	FUNCTION_OBJECT = "func"
+	LIST_OBJECT     = "list"
 	NIL_OBJECT      = "nil"
 )
 
@@ -88,6 +89,7 @@ type Function struct {
 	Name       string
 	Parameters []ast.Noder
 	Code       func(params ...ast.Noder) ast.Noder
+	Builtin    bool
 }
 
 func (f *Function) Type() string {
@@ -105,4 +107,25 @@ func (f *Function) String() string {
 		}
 	}
 	return fmt.Sprintf("%s(%s)", f.Name, params)
+}
+
+// LIST OBJECT
+type List struct {
+	Values []Object
+}
+
+func (l *List) Type() string {
+	return LIST_OBJECT
+}
+
+func (l *List) String() string {
+	values := "["
+	if l.Values != nil {
+		for _, value := range l.Values {
+			values = values + value.String() + ", "
+		}
+		values = values[:len(values)-2]
+	}
+	values += "]"
+	return values
 }

@@ -125,6 +125,10 @@ checkComments:
 		tok = l.newToken(token.LPAREN, string(l.ch))
 	case ')':
 		tok = l.newToken(token.RPAREN, string(l.ch))
+	case '[':
+		tok = l.newToken(token.LBRACK, string(l.ch))
+	case ']':
+		tok = l.newToken(token.RBRACK, string(l.ch))
 	case '=':
 		if l.peekCharacter() == '=' {
 			tok = l.newToken(token.EQEQ, string(l.ch)+string(l.ch))

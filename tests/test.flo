@@ -42,10 +42,10 @@ func x() {
     return y()
 }
 print x()
-/* print factorial(5) */
-/* print add2(3,5) */
-/* print add(2,4)
+print factorial(5)
+print add2(3,5)
+print add(2,4)
 print sub(2,4)
 print mul(2,4)
 print div(2,4)
-print pow(2,4) */
+print pow(2,4)

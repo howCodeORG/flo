@@ -8,8 +8,6 @@ func factorial(n) {
 }
 
 // Ask user for their choice
-choice = input("Enter a number, see the factorial: ")
-// Convert their choice from a string to an int
-choice = integer(choice)
+choice = int(input("Enter a number, see the factorial: "))
 // Show the user their answer
 print factorial(choice)

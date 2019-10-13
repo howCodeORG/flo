@@ -21,6 +21,7 @@ var Keywords = map[string]string{
 	K_FOR:    K_FOR,
 	K_FUNC:   K_FUNC,
 	K_RETURN: K_RETURN,
+	K_BREAK:  K_BREAK,
 	K_DYN:    K_DYN,
 }
 
@@ -38,6 +39,7 @@ const (
 	K_FOR    = "k_for"
 	K_FUNC   = "k_func"
 	K_RETURN = "k_return"
+	K_BREAK  = "k_break"
 	K_DYN    = "k_dyn"
 
 	EOF       = ""
@@ -58,6 +60,8 @@ const (
 	BANG      = "!"
 	LPAREN    = "("
 	RPAREN    = ")"
+	LBRACK    = "["
+	RBRACK    = "]"
 	LBRACE    = "{"
 	RBRACE    = "}"
 	SEMICOLON = ";"

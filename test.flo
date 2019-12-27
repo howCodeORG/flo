@@ -1,0 +1,128 @@
+
+// // // list = [1,2.5,true,'hello world', [1,2,3,4,5]]
+// // // print list
+
+// // // for i = 0; i < 5; i++ {
+
+// // //     print list[i]
+// // //     if i == 4 {
+// // //         for j = 0; j < 5; j++ {
+
+// // //             print list[i][j]
+
+// // //         }
+// // //     }
+// // // }
+
+func fib(n) {
+    if n < 2 {
+        return n
+    } else {
+        return fib(n-1) + fib(n-2)
+    }
+}
+func fact(n) {
+    if n > 0 {
+        return n * fact(n-1)
+    }
+    return 1
+}
+func sum(n) {
+    if n > 0 {
+        return n + sum(n-1)
+    }
+    return n
+}
+func loop(x) {
+    for i = 0; i < x; i++ {
+        print i
+    }
+    return sum(x)
+}
+
+print fib(11)
+print fact(5)
+print sum(11)
+print loop(5)
+
+// func error() {
+//     return 1 + 'some string'
+// }
+
+// func test(n) {
+//     if n > 0 {
+//         return test(n-1)
+//     }
+//     return error()
+// }
+// print test(0)
+// print fib(6)
+
+// func s2l(str) {
+//     for i = 0; i < 10; i++ {
+//         print str
+//     }
+// }
+// s2l('hello world')
+
+// func add(a,b) {
+//     if a > 0 {
+//         return add(a-1,b+1)
+//     }
+//     return b
+// }
+// print add(2,8)
+// print fib(30)
+
+// func x(a) {
+//     if a > 0 {
+//         print x(a-1)
+//     }
+//     return [a]
+// }
+// print x(5)
+// a = 100
+// b = 200
+// c = a + b
+// if a < 500 {
+//     print c * 2
+// }
+
+// for i = 0; i < 10; i++ {
+//     print i
+//     for j = 0; j < 10; j++ {
+//         print j
+//     }
+// }
+// x = 3
+// a = [1,2,3,[4,5,6, 'hello', 'world', true, false, 2.5]]
+// print a
+// print a[3][0]
+// print a[x]
+
+// for i = 0; i < 5; i++ {
+//     print i
+// }
+
+
+// func add(a,b) {
+//     if a > 0 {
+//         return add
+//     }
+// }
+// print add(2,3)
+// func test(a) {
+//     if a > 0 {
+//         return 1+test(a-1)
+//     }
+//     return a
+// }
+// print test(2)
+// func test() {
+//     return 'test'
+// }
+// print test()
+// func a(b,c) {
+//     return b+c
+// }
+// print a(2,3)

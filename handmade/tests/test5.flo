@@ -1,0 +1,21 @@
+print "Hello World!"
+
+for i = 0; i < 10; i = i + 1 {
+    print i % 2
+}
+
+for i = 0; i < 10; i = i + 1 {
+    print i * 2.5
+}
+
+func x(a int) int {
+
+}
+
+a = func(a int) int {
+
+}
+
+a func(int) int = func(a int) int {
+
+}

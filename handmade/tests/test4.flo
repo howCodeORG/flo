@@ -1,0 +1,24 @@
+{
+if 1 <= 1 {
+    print 123 // This is a test comment
+    print 456+200
+    if 1 < 2 {
+        print 100
+    }
+    /* print 200
+    this is more of the comment*/
+
+
+
+    for x = 0; x < 5; x = x + 1 {
+        print x;
+        if x >= 3 {
+            print "if true";
+        } else {
+            print "if false"
+        }
+    }
+
+}
+print 789
+}

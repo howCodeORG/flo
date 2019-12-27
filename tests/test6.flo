@@ -1,8 +1,0 @@
-
-// Flo equivalent to the following do-while
-// bool ok = true;
-// do {print "Hello World"} while (ok = 1 > 2);
-
-for ok = true; ok; ok = 1 > 2 {
-    print "Hello WOrld"
-}

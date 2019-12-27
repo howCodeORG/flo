@@ -1,4 +1,4 @@
-package eval
+package compiler
 
 import (
 	"flo/parser"
@@ -13,10 +13,10 @@ import (
 type FloVisitor struct {
 	*parser.BaseFloVisitor
 
-	Stack       []FloObject
+	Stack       []vm.FloObject
 	blockScope  int
 	funcScope   int
-	environment []map[string]FloObject
+	environment []map[string]vm.FloObject
 	Error       bool
 	Object      vm.Object
 }
@@ -26,11 +26,11 @@ func (v *FloVisitor) cleanup() {
 	v.funcScope = 0
 }
 
-func (v *FloVisitor) push(o FloObject) {
+func (v *FloVisitor) push(o vm.FloObject) {
 	v.Stack = append(v.Stack, o)
 }
 
-func (v *FloVisitor) pop() FloObject {
+func (v *FloVisitor) pop() vm.FloObject {
 
 	if len(v.Stack) > 0 {
 		x := v.Stack[len(v.Stack)-1]
@@ -42,11 +42,11 @@ func (v *FloVisitor) pop() FloObject {
 
 // Init creates the environment for Flo program state
 func (v *FloVisitor) Init() {
-	v.environment = make([]map[string]FloObject, 1)
-	v.environment[v.blockScope] = make(map[string]FloObject, 1)
+	v.environment = make([]map[string]vm.FloObject, 1)
+	v.environment[v.blockScope] = make(map[string]vm.FloObject, 1)
 }
 
-func (v *FloVisitor) readIdentifier(name string) FloObject {
+func (v *FloVisitor) readIdentifier(name string) vm.FloObject {
 
 	// var scope int
 
@@ -67,7 +67,7 @@ func (v *FloVisitor) readIdentifier(name string) FloObject {
 	return nil
 }
 
-func (v *FloVisitor) storeIdentifier(identifier string, value FloObject) {
+func (v *FloVisitor) storeIdentifier(identifier string, value vm.FloObject) {
 
 	// var found bool
 	// for i := v.blockScope; i >= v.funcScope; i-- {
@@ -96,7 +96,7 @@ func (v *FloVisitor) exitBlock() {
 
 func (v *FloVisitor) doError(err string) {
 	v.cleanup()
-	v.Stack = make([]FloObject, 0)
+	v.Stack = make([]vm.FloObject, 0)
 	panic(err)
 }
 
@@ -317,7 +317,7 @@ func (v *FloVisitor) VisitFunc_decl(ctx *parser.Func_declContext) interface{} {
 // VisitParameters evaluates Flo callable parameters
 func (v *FloVisitor) VisitParameters(ctx *parser.ParametersContext) interface{} {
 
-	vals := make([]FloObject, 0)
+	vals := make([]vm.FloObject, 0)
 	for _, val := range ctx.AllIDENTIFIER() {
 		// vals = append(vals, v.Visit(val).(FloString))
 		vals = append(vals, vm.FloString(val.GetText()))
@@ -522,25 +522,28 @@ func (v *FloVisitor) VisitBitwiseOr(ctx *parser.BitwiseOrContext) interface{} {
 // VisitAnd evaluates logical 'and'
 func (v *FloVisitor) VisitAnd(ctx *parser.AndContext) interface{} {
 
-	left, right := v.Visit(ctx.Expression(0)).(FloObject), v.Visit(ctx.Expression(1)).(FloObject)
-	x := And(left, right)
-	return x
+	v.Visit(ctx.Expression(0))
+	v.Visit(ctx.Expression(1))
+	v.Object.Compile_Logical_And()
+	return nil
 }
 
 // VisitOr evaluates logical 'or'
 func (v *FloVisitor) VisitOr(ctx *parser.OrContext) interface{} {
 
-	left, right := v.Visit(ctx.Expression(0)).(FloObject), v.Visit(ctx.Expression(1)).(FloObject)
-	x := Or(left, right)
-	return x
+	v.Visit(ctx.Expression(0))
+	v.Visit(ctx.Expression(1))
+	v.Object.Compile_Logical_Or()
+	return nil
 }
 
 // VisitNot evaluates logical 'not'
 func (v *FloVisitor) VisitNot(ctx *parser.NotContext) interface{} {
 
-	value := v.Visit(ctx.Expression()).(FloObject)
-	x := Not(value)
-	return x
+	v.Visit(ctx.Expression())
+	v.Object.Compile_Unary_Not()
+	// x := Not(value)
+	return nil
 }
 
 // VisitList evaluates Flo lists
@@ -565,7 +568,7 @@ func (v *FloVisitor) VisitExpression_list(ctx *parser.Expression_listContext) in
 	vals := make([]vm.FloObject, 0)
 	for _, val := range ctx.AllExpression() {
 		v.Visit(val)
-		vals = append(vals, FloInteger(0))
+		vals = append(vals, vm.FloInteger(0))
 
 	}
 
@@ -605,44 +608,45 @@ func (v *FloVisitor) VisitGetItem(ctx *parser.GetItemContext) interface{} {
 	return nil
 }
 
-func (v *FloVisitor) callCallable(fn FloCallable, args FloList) FloObject {
+func (v *FloVisitor) callCallable(fn vm.FloCallable, args vm.FloList) vm.FloObject {
 
-	prev_func_scope := v.funcScope
+	// prev_func_scope := v.funcScope
 
-	v.push(fn)
+	// v.push(fn)
 
-	v.enterBlock()
+	// v.enterBlock()
 
-	v.funcScope = v.blockScope
+	// v.funcScope = v.blockScope
 
-	// Check arity
-	if len(args) != len(fn.args) {
-		v.doError(callableArgsTypeError(fn, len(args)))
-	}
+	// // Check arity
+	// if len(args) != len(fn.Args) {
+	// 	v.doError(vm.allableArgsTypeError(fn, len(args)))
+	// }
 
-	// Initialise callable with parameters
-	for i, arg := range args {
-		v.storeIdentifier(string(fn.args[i].(FloString)), arg)
-	}
+	// // Initialise callable with parameters
+	// for i, arg := range args {
+	// 	v.storeIdentifier(string(fn.args[i].(FloString)), arg)
+	// }
 
-	// Call function
-	fn.body.Accept(v)
+	// // Call function
+	// fn.body.Accept(v)
 
-	// Pop return value off call stack
-	x := v.pop()
+	// // Pop return value off call stack
+	// x := v.pop()
 
-	// Pop function off call stack
-	v.pop()
+	// // Pop function off call stack
+	// v.pop()
 
-	v.exitBlock()
+	// v.exitBlock()
 
-	v.funcScope = prev_func_scope
+	// v.funcScope = prev_func_scope
 
-	if x == nil {
-		return nil
-	}
-	// fmt.Println(v.Stack)
-	return x.(FloObject)
+	// if x == nil {
+	// 	return nil
+	// }
+	// // fmt.Println(v.Stack)
+	// return x.(FloObject)
+	return nil
 }
 
 // VisitCallExpression evaluates Flo function calls
@@ -711,7 +715,7 @@ func (v *FloVisitor) VisitInteger(ctx *parser.IntegerContext) interface{} {
 
 	v.Object.Compile_Load_Const(x)
 
-	return FloInteger(i)
+	return nil
 
 }
 
@@ -726,7 +730,7 @@ func (v *FloVisitor) VisitFloat(ctx *parser.FloatContext) interface{} {
 	x := vm.FloFloat(f)
 	v.Object.Compile_Load_Const(x)
 
-	return FloFloat(f)
+	return nil
 }
 
 // VisitString evaluates Flo strings
@@ -738,7 +742,7 @@ func (v *FloVisitor) VisitString(ctx *parser.StringContext) interface{} {
 	x := vm.FloString(value)
 	v.Object.Compile_Load_Const(x)
 
-	return FloString(value)
+	return nil
 
 }
 
@@ -751,7 +755,7 @@ func (v *FloVisitor) VisitBoolean(ctx *parser.BooleanContext) interface{} {
 	} else {
 		v.Object.Compile_Load_Const(vm.FloBool(false))
 	}
-	return FloBool(false)
+	return nil
 
 }
 

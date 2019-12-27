@@ -326,6 +326,20 @@ func (o *Object) Compile_Binary_And() {
 
 }
 
+func (o *Object) Compile_Logical_Or() {
+
+	o.Instructions = append(o.Instructions, LOGICAL_OR)
+	o.Instructions = append(o.Instructions, 0)
+
+}
+
+func (o *Object) Compile_Logical_And() {
+
+	o.Instructions = append(o.Instructions, LOGICAL_AND)
+	o.Instructions = append(o.Instructions, 0)
+
+}
+
 func (o *Object) Compile_Binary_XOR() {
 
 	o.Instructions = append(o.Instructions, BINARY_XOR)

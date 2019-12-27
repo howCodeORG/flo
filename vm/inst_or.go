@@ -1,7 +1,7 @@
-package eval
+package vm
 
-// Or implements logical or for Flo's primitive types
-func Or(left, right FloObject) FloBool {
+// LogicalOr implements LOGICAL_OR
+func LogicalOr(left, right FloObject) FloBool {
 
 	var value FloBool
 

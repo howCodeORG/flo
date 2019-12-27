@@ -1,7 +1,7 @@
-package eval
+package vm
 
-// And implements logical and for Flo's primitive types
-func And(left, right FloObject) FloBool {
+// LogicalAnd implements LOGICAL_AND
+func LogicalAnd(left, right FloObject) FloObject {
 
 	var value FloBool
 

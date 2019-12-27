@@ -66,8 +66,8 @@ const (
 	UNARY_NOT
 	UNARY_ADD
 	UNARY_SUB
-	UNARY_INC
-	UNARY_DEC
+	LOGICAL_OR
+	LOGICAL_AND
 	COMPARE
 	POP_JUMP_IF_FALSE
 	POP_JUMP_IF_TRUE
@@ -219,7 +219,7 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 	// vm.storeVar(function.Name, function, currentFrame)
 	// currentFrame.blockStack[0][function.Name.String()] = function
 
-	// vm.Debug(function.Object)
+	vm.Debug(function.Object)
 	// fmt.Println("---------")
 
 	var extended_arg int
@@ -432,7 +432,16 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 			tos := currentFrame.dataStack.Pop()
 			x := Unary_Sub(tos)
 			currentFrame.dataStack.Push(x)
-
+		case LOGICAL_OR:
+			tos := currentFrame.dataStack.Pop()
+			tos1 := currentFrame.dataStack.Pop()
+			x := LogicalOr(tos1, tos)
+			currentFrame.dataStack.Push(x)
+		case LOGICAL_AND:
+			tos := currentFrame.dataStack.Pop()
+			tos1 := currentFrame.dataStack.Pop()
+			x := LogicalAnd(tos1, tos)
+			currentFrame.dataStack.Push(x)
 		case COMPARE:
 			param := instructions[i+1]
 			tos := currentFrame.dataStack.Pop()
@@ -486,7 +495,6 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 			panic("Unknown instruction")
 		}
 	}
-	// vm.Debug(function.Object)
 	return FloNil{}
 
 }
@@ -503,84 +511,84 @@ func (vm *VM) DecodeObjectInstructions(obj Object) {
 		switch instructions[i] {
 		case LOAD_CONST:
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
-			fmt.Println(i, "LOAD_CONST", obj.Constants[param])
+			fmt.Printf("%d LOAD_CONST %s (%d)\n", i, obj.Constants[param], param)
 		case LOAD_NAME:
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
-			fmt.Println(i, "LOAD_NAME", obj.Names[param])
+			fmt.Printf("%d LOAD_NAME %s (%d)\n", i, obj.Names[param], param)
 		case STORE_NAME:
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
-			fmt.Println(i, "STORE_NAME", obj.Names[param])
+			fmt.Printf("%d STORE_NAME %s (%d)\n", i, obj.Names[param], param)
 		case EXTENDED_ARG:
-			fmt.Println(i, "EXTENDED_ARG", instructions[i+1])
+			fmt.Printf("%d EXTENDED_ARG %d\n", i, instructions[i+1])
 		case PUSH_BLOCK:
-			fmt.Println(i, "PUSH_BLOCK", instructions[i+1])
+			fmt.Printf("%d EXTENDED_ARG %d\n", i, instructions[i+1])
 		case POP_BLOCK:
-			fmt.Println(i, "POP_BLOCK", instructions[i+1])
+			fmt.Printf("%d EXTENDED_ARG %d\n", i, instructions[i+1])
 		case BUILD_LIST:
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
-			fmt.Println(i, "BUILD_LIST", param)
+			fmt.Printf("%d BUILD_LIST %d\n", i, param)
 		case GET_ITEM:
-			fmt.Println(i, "GET_ITEM", instructions[i+1])
+			fmt.Printf("%d GET_ITEM %d\n", i, instructions[i+1])
 		case SETUP_FUNCTION:
-			fmt.Println(i, "SETUP_FUNCTION", instructions[i+1])
+			fmt.Printf("%d SETUP_FUNCTION %d\n", i, instructions[i+1])
 		case SETUP_PARAMS:
-			fmt.Println(i, "SETUP_PARAMS", instructions[i+1])
+			fmt.Printf("%d SETUP_PARAMS %d\n", i, instructions[i+1])
 		case SETUP_BODY:
-			fmt.Println(i, "SETUP_BODY", instructions[i+1])
+			fmt.Printf("%d SETUP_BODY %d\n", i, instructions[i+1])
 		case MAKE_FUNCTION:
-			fmt.Println(i, "MAKE_FUNCTION", instructions[i+1])
+			fmt.Printf("%d MAKE_FUNCTION %d\n", i, instructions[i+1])
 		case CALL_FUNCTION:
-			fmt.Println(i, "CALL_FUNCTION", instructions[i+1])
+			fmt.Printf("%d CALL_FUNCTION %d\n", i, instructions[i+1])
 		case RETURN:
-			fmt.Println(i, "RETURN", instructions[i+1])
+			fmt.Printf("%d RETURN %d\n", i, instructions[i+1])
 		case BINARY_ADD:
-			fmt.Println(i, "BINARY_ADD", instructions[i+1])
+			fmt.Printf("%d BINARY_ADD %d\n", i, instructions[i+1])
 		case BINARY_SUB:
-			fmt.Println(i, "BINARY_SUB", instructions[i+1])
+			fmt.Printf("%d BINARY_SUB %d\n", i, instructions[i+1])
 		case BINARY_DIV:
-			fmt.Println(i, "BINARY_DIV", instructions[i+1])
+			fmt.Printf("%d BINARY_DIV %d\n", i, instructions[i+1])
 		case BINARY_MUL:
-			fmt.Println(i, "BINARY_MUL", instructions[i+1])
+			fmt.Printf("%d BINARY_MUL %d\n", i, instructions[i+1])
 		case BINARY_POW:
-			fmt.Println(i, "BINARY_POW", instructions[i+1])
+			fmt.Printf("%d BINARY_POW %d\n", i, instructions[i+1])
 		case BINARY_MOD:
-			fmt.Println(i, "BINARY_MOD", instructions[i+1])
+			fmt.Printf("%d BINARY_MOD %d\n", i, instructions[i+1])
 		case BINARY_LSHIFT:
-			fmt.Println(i, "BINARY_LSHIFT", instructions[i+1])
+			fmt.Printf("%d BINARY_LSHIFT %d\n", i, instructions[i+1])
 		case BINARY_RSHIFT:
-			fmt.Println(i, "BINARY_RSHIFT", instructions[i+1])
+			fmt.Printf("%d BINARY_RSHIFT %d\n", i, instructions[i+1])
 		case BINARY_AND:
-			fmt.Println(i, "BINARY_AND", instructions[i+1])
+			fmt.Printf("%d BINARY_AND %d\n", i, instructions[i+1])
 		case BINARY_XOR:
-			fmt.Println(i, "BINARY_XOR", instructions[i+1])
+			fmt.Printf("%d BINARY_XOR %d\n", i, instructions[i+1])
 		case BINARY_OR:
-			fmt.Println(i, "BINARY_OR", instructions[i+1])
+			fmt.Printf("%d BINARY_OR %d\n", i, instructions[i+1])
 		case UNARY_NOT:
-			fmt.Println(i, "UNARY_NOT", instructions[i+1])
+			fmt.Printf("%d UNARY_NOT %d\n", i, instructions[i+1])
 		case UNARY_ADD:
-			fmt.Println(i, "UNARY_ADD", instructions[i+1])
+			fmt.Printf("%d UNARY_ADD %d\n", i, instructions[i+1])
 		case UNARY_SUB:
-			fmt.Println(i, "UNARY_SUB", instructions[i+1])
-		case UNARY_INC:
-			fmt.Println(i, "UNARY_INC", instructions[i+1])
-		case UNARY_DEC:
-			fmt.Println(i, "UNARY_DEC", instructions[i+1])
+			fmt.Printf("%d UNARY_SUB %d\n", i, instructions[i+1])
+		case LOGICAL_OR:
+			fmt.Printf("%d LOGICAL_OR %d\n", i, instructions[i+1])
+		case LOGICAL_AND:
+			fmt.Printf("%d LOGICAL_AND %d\n", i, instructions[i+1])
 		case COMPARE:
-			fmt.Println(i, "COMPARE", instructions[i+1])
+			fmt.Printf("%d COMPARE %d\n", i, instructions[i+1])
 		case POP_JUMP_IF_FALSE:
-			fmt.Println(i, "POP_JUMP_IF_FALSE", instructions[i+1])
+			fmt.Printf("%d POP_JUMP_IF_FALSE %d\n", i, instructions[i+1])
 		case POP_JUMP_IF_TRUE:
-			fmt.Println(i, "POP_JUMP_IF_TRUE", instructions[i+1])
+			fmt.Printf("%d POP_JUMP_IF_TRUE %d\n", i, instructions[i+1])
 		case JUMP_BACK:
-			fmt.Println(i, "JUMP_BACK", instructions[i+1])
+			fmt.Printf("%d JUMP_BACK %d\n", i, instructions[i+1])
 		case JUMP_IF_FALSE:
-			fmt.Println(i, "JUMP_IF_FALSE", instructions[i+1])
+			fmt.Printf("%d JUMP_IF_FALSE %d\n", i, instructions[i+1])
 		case JUMP:
-			fmt.Println(i, "JUMP", instructions[i+1])
+			fmt.Printf("%d JUMP %d\n", i, instructions[i+1])
 		case PRINT:
-			fmt.Println(i, "PRINT", instructions[i+1])
+			fmt.Printf("%d PRINT %d\n", i, instructions[i+1])
 		case NOP:
-			fmt.Println(i, "NOP", instructions[i+1])
+			fmt.Printf("%d NOP %d\n", i, instructions[i+1])
 		default:
 			fmt.Println(i, "UNKNOWN")
 		}

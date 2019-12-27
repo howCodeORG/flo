@@ -11,7 +11,7 @@ import (
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 
-	"flo/eval"
+	"flo/compiler"
 	"flo/parser"
 
 	"github.com/c-bata/go-prompt"
@@ -66,7 +66,7 @@ func handleExit() {
 	}
 }
 
-func doEval(p *parser.FloParser, visitor *eval.FloVisitor) {
+func doEval(p *parser.FloParser, visitor *compiler.FloVisitor) {
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -98,7 +98,7 @@ func Start(in io.Reader, out io.Writer) {
 	fmt.Println("-- Welcome to Flo (0.0.1) --\n-- Ctrl-C to exit --")
 
 	// var listener eval.FloListener
-	var visitor eval.FloVisitor
+	var visitor compiler.FloVisitor
 	visitor.Init()
 	flovm := vm.VM{}
 	flovm.Init()
@@ -164,7 +164,7 @@ func main() {
 		Start(os.Stdin, os.Stdout)
 	} else {
 
-		var visitor eval.FloVisitor
+		var visitor compiler.FloVisitor
 		flovm := vm.VM{}
 		flovm.Init()
 		visitor.Init()

@@ -68,6 +68,10 @@ func (v *BaseFloVisitor) VisitUnaryIncDec(ctx *UnaryIncDecContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseFloVisitor) VisitAnonFunc(ctx *AnonFuncContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseFloVisitor) VisitReadIdentifier(ctx *ReadIdentifierContext) interface{} {
 	return v.VisitChildren(ctx)
 }

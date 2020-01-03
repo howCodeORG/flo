@@ -18,6 +18,8 @@ func Binary_Add(left, right FloObject) FloObject {
 		value = left.(FloFloat) + right.(FloFloat)
 	} else if t1 == FloSTRING && t2 == FloSTRING {
 		value = left.(FloString) + right.(FloString)
+	} else if t1 == FloLIST && t2 == FloLIST {
+		value = append(left.(FloList), right.(FloList)...)
 	} else {
 		panic(unsupportedTypesError("+", left, right))
 	}

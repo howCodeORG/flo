@@ -26,9 +26,9 @@ func (s *Stack) Pop() FloObject {
 
 // Frame is a function call frame
 type Frame struct {
-	name       string
+	function   FloCallable
 	dataStack  Stack
-	blockStack []map[string]FloObject
+	blockStack []map[FloString]FloObject
 }
 
 // VM is the Flo virtual machine
@@ -85,12 +85,12 @@ func (vm *VM) tos() *Frame {
 	return nil
 }
 
-func (vm *VM) funcCall(name string) {
+func (vm *VM) funcCall(function FloCallable) {
 	f := Frame{
-		name: name,
+		function: function,
 	}
-	f.blockStack = make([]map[string]FloObject, 1)
-	f.blockStack[len(f.blockStack)-1] = make(map[string]FloObject, 1)
+	// f.blockStack = make([]map[FloString]FloObject, 1)
+	// f.blockStack[len(f.blockStack)-1] = make(map[FloString]FloObject, 1)
 	vm.callStack = append(vm.callStack, f)
 
 }
@@ -102,24 +102,34 @@ func (vm *VM) funcReturn() {
 
 }
 
-func (vm *VM) readVar(name FloString, currentFrame *Frame) FloObject {
+func (vm *VM) readVar(name FloString, currentFunc FloCallable) FloObject {
 
-	var found bool
-
-	endOfBlockStack := len(currentFrame.blockStack) - 1
-	scope := endOfBlockStack
-	for j := len(vm.callStack) - 1; j >= 0; j-- {
-		for i := scope; i >= 0; i-- {
-			if value, ok := vm.callStack[j].blockStack[i][string(name)]; ok {
-				found = true
-				return value
-			}
+	scope := len(currentFunc.Object.Environment) - 1
+	for i := scope; i >= 0; i-- {
+		if val, ok := currentFunc.Object.Environment[i][name]; ok {
+			return val
 		}
 	}
-	if !found {
-		panic(nameNotDefinedError(string(name)))
-	}
+	panic(nameNotDefinedError(string(name)))
 	return nil
+	// var found bool
+
+	// endOfBlockStack := len(currentFrame.blockStack) - 1
+	// scope := endOfBlockStack
+	// for j := len(vm.callStack) - 1; j >= 0; j-- {
+	// 	for i := scope; i >= 0; i-- {
+	// 		if value, ok := vm.callStack[j].blockStack[i][name]; ok {
+	// 			found = true
+	// 			// vm.callStack[len(vm.callStack)-1].blockStack[scope][name] = value
+	// 			// fmt.Println("l", name, i, currentFrame.blockStack)
+	// 			return value
+	// 		}
+	// 	}
+	// }
+	// if !found {
+	// 	panic(nameNotDefinedError(string(name)))
+	// }
+	// return nil
 
 	// if value, ok := currentFrame.blockStack[endOfBlockStack][string(name)]; ok {
 	// 	return value
@@ -128,48 +138,65 @@ func (vm *VM) readVar(name FloString, currentFrame *Frame) FloObject {
 
 }
 
-func (vm *VM) storeVar(name FloString, val FloObject, currentFrame *Frame) {
+func (vm *VM) storeVar(name FloString, val FloObject, currentFunc FloCallable) {
 
-	var found bool
-	endOfBlockStack := len(currentFrame.blockStack) - 1
-	scope := endOfBlockStack
+	scope := len(currentFunc.Object.Environment) - 1
 	for i := scope; i >= 0; i-- {
-		if _, ok := currentFrame.blockStack[i][string(name)]; ok {
-			found = true
-			currentFrame.blockStack[i][string(name)] = val
+		if _, ok := currentFunc.Object.Environment[i][name]; ok {
+			currentFunc.Object.Environment[i][name] = val
+			return
 		}
 	}
 
-	if !found {
-		currentFrame.blockStack[scope][string(name)] = val
-	}
+	currentFunc.Object.Environment[scope][name] = val
+	return
+
+	// var found bool
+	// endOfBlockStack := len(currentFrame.blockStack) - 1
+	// scope := endOfBlockStack
+	// for i := scope; i >= 0; i-- {
+	// 	if _, ok := currentFrame.blockStack[i][name]; ok {
+	// 		// fmt.Println(currentFrame.blockStack)
+	// 		found = true
+	// 		currentFrame.blockStack[i][name] = val
+	// 		// fmt.Println("f", name, i, val, currentFrame.blockStack)
+	// 		break
+	// 	}
+	// }
+
+	// if !found {
+	// 	currentFrame.blockStack[scope][name] = val
+	// 	// fmt.Println("nf", name, scope, val, currentFrame.blockStack)
+	// }
 
 }
 
-func (vm *VM) newBlock(currentFrame *Frame) {
-	currentFrame.blockStack = append(currentFrame.blockStack, make(map[string]FloObject, 1))
+func (vm *VM) newBlock(currentFunc FloCallable) {
+	// currentFrame.blockStack = append(currentFrame.blockStack, make(map[FloString]FloObject, 1))
+	currentFunc.Object.Environment = append(currentFunc.Object.Environment, make(map[FloString]FloObject, 1))
 }
 
-func (vm *VM) remBlock(currentFrame *Frame) {
-	currentFrame.blockStack = currentFrame.blockStack[:len(currentFrame.blockStack)-1]
+func (vm *VM) remBlock(currentFunc FloCallable) {
+	// currentFrame.blockStack = currentFrame.blockStack[:len(currentFrame.blockStack)-1]
+	currentFunc.Object.Environment = currentFunc.Object.Environment[:len(currentFunc.Object.Environment)-1]
 }
 
-func (vm *VM) Debug(obj Object) {
+func (vm *VM) Debug(obj *Object) {
 
-	currentFrame := vm.tos()
+	// currentFrame := vm.tos()
 	fmt.Println("Instructions (text)    :")
-	vm.DecodeObjectInstructions(obj)
+	vm.DecodeObjectInstructions(*obj)
 	fmt.Println("Instructions (bytecode):", obj.Instructions)
 	fmt.Println("Contstants             :", obj.Constants)
 	fmt.Println("Names                  :", obj.Names)
-	fmt.Println("Env                    :", currentFrame.blockStack)
+	fmt.Println("Env                    :", obj.Environment)
 
 }
 
 // Init the virtual machine
-func (vm *VM) Init() {
+func (vm *VM) Init(main_func FloCallable) {
 
-	vm.funcCall("main")
+	vm.funcCall(main_func)
 
 }
 
@@ -190,19 +217,7 @@ func (vm *VM) getParam(extended_arg int, next_instruction byte, currentFrame *Fr
 }
 
 // Run executes the VM
-func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
-
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("-- traceback --")
-			for i, _ := range vm.callStack {
-				frame := vm.callStack[i]
-				fmt.Println(frame.name)
-			}
-			fmt.Println(r)
-			// fmt.Println(debug.Stack())
-		}
-	}()
+func (vm *VM) Run(function FloCallable) FloObject {
 
 	instructionCount := len(function.Object.Instructions)
 	instructions := function.Object.Instructions
@@ -211,39 +226,108 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 	// for i, arg := range function.Args {
 	// 	currentFrame.blockStack[0][arg.String()] = param_vals[i]
 	// }
-	for i, arg := range function.Args {
-		// currentFrame.blockStack[0][arg.String()] = param_vals[i]
-		vm.storeVar(arg.(FloString), param_vals[i], currentFrame)
-	}
+	// for i, arg := range function.Args {
+	// 	// currentFrame.blockStack[0][arg.String()] = param_vals[i]
+	// 	vm.storeVar(arg.(FloString), param_vals[i], currentFrame)
+	// }
 
 	// vm.storeVar(function.Name, function, currentFrame)
 	// currentFrame.blockStack[0][function.Name.String()] = function
 
-	vm.Debug(function.Object)
+	// vm.Debug(function.Object)
 	// fmt.Println("---------")
 
 	var extended_arg int
+	// var temp_names []FloString
+	// var temp_consts []FloObject
+	// mf is short for "making function"
+	var mf bool
+	var fn_body_start int
+	var fn_body_end int
+	var block_level int
 
 	for i := 0; i < instructionCount; i += 2 {
+		// If making a function don't execute any instructions,
+		// just collect names, constants, extended_args and blocks
+		if mf &&
+			instructions[i] != LOAD_CONST &&
+			instructions[i] != LOAD_NAME &&
+			instructions[i] != STORE_NAME &&
+			instructions[i] != EXTENDED_ARG &&
+			instructions[i] != PUSH_BLOCK &&
+			instructions[i] != POP_BLOCK {
+			continue
+		}
 		switch instructions[i] {
 		case LOAD_CONST:
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
-			currentFrame.dataStack.Push(function.Object.Constants[param])
+			val := function.Object.Constants[param]
+			if mf == false {
+				currentFrame.dataStack.Push(val)
+			} else {
+				// var found bool
+				// for _, n := range temp_consts {
+				// 	if n == function.Object.Names[param] {
+				// 		found = true
+				// 	}
+				// }
+				// if !found {
+				// 	temp_consts = append(temp_consts, val)
+				// }
+			}
 		case LOAD_NAME:
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
-			x := vm.readVar(function.Object.Names[param], currentFrame)
-			currentFrame.dataStack.Push(x)
+			if mf == false {
+				x := vm.readVar(function.Object.Names[param], function)
+				currentFrame.dataStack.Push(x)
+			} else {
+				// var found bool
+				// for _, n := range temp_names {
+				// 	if n == function.Object.Names[param] {
+				// 		found = true
+				// 	}
+				// }
+				// if !found {
+				// 	temp_names = append(temp_names, function.Object.Names[param])
+				// }
+			}
 		case STORE_NAME:
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
-			tos := currentFrame.dataStack.Pop()
-			vm.storeVar(function.Object.Names[param], tos, currentFrame)
+			if mf == false {
+				tos := currentFrame.dataStack.Pop()
+				vm.storeVar(function.Object.Names[param], tos, function)
+			} else {
+				// var found bool
+				// for _, n := range temp_names {
+				// 	if n == function.Object.Names[param] {
+				// 		found = true
+				// 	}
+				// }
+				// if !found {
+				// 	temp_names = append(temp_names, function.Object.Names[param])
+				// }
+			}
 		case EXTENDED_ARG:
 			extended_arg++
 			currentFrame.dataStack.Push(FloInteger(instructions[i+1]))
 		case PUSH_BLOCK:
-			vm.newBlock(currentFrame)
+			if mf == false {
+				vm.newBlock(function)
+			} else {
+				block_level++
+			}
+
 		case POP_BLOCK:
-			vm.remBlock(currentFrame)
+			if mf == false {
+				vm.remBlock(function)
+			} else {
+				block_level--
+				if block_level == 0 {
+					mf = false
+					fn_body_end = i
+					currentFrame.dataStack.Push(FloInteger(fn_body_end - fn_body_start))
+				}
+			}
 		case BUILD_LIST:
 			list := make([]FloObject, 0)
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
@@ -277,21 +361,22 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 			currentFrame.dataStack.Push(FloList(list))
 			continue
 		case SETUP_BODY:
-			j := 0
-			i += 2
-			body_start := i
-			// Instruction pointer, points to start of function block
-			for ok := true; ok; ok = j > 0 {
-				if instructions[i] == PUSH_BLOCK {
-					j++
-				} else if instructions[i] == POP_BLOCK {
-					j--
-				}
-				i += 2
-			}
-			i -= 2
-			body_end := i
-			currentFrame.dataStack.Push(FloInteger(body_end - body_start))
+			mf = true
+			fn_body_start = i
+			// j := 0
+			// i += 2
+			// body_start := i
+			// // Instruction pointer, points to start of function block
+			// for ok := true; ok; ok = j > 0 {
+			// 	if instructions[i] == PUSH_BLOCK {
+			// 		j++
+			// 	} else if instructions[i] == POP_BLOCK {
+			// 		j--
+			// 	}
+			// 	i += 2
+			// }
+			// i -= 2
+			// body_end := i
 			continue
 		case MAKE_FUNCTION:
 			bodySize := int(currentFrame.dataStack.Pop().(FloInteger))
@@ -299,25 +384,53 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 			name := currentFrame.dataStack.Pop().(FloString)
 			functionBody := make([]byte, 0)
 			functionBody = append(functionBody, instructions[i-bodySize:i]...)
+			env := make([]map[FloString]FloObject, 1)
+			env[0] = make(map[FloString]FloObject, 5)
+			for _, p := range params {
+				env[0][p.(FloString)] = FloNil{}
+			}
 			object := Object{
 				ConstantCount: function.Object.ConstantCount,
 				Constants:     make([]FloObject, len(function.Object.Constants)),
 				NameCount:     function.Object.NameCount,
 				Names:         make([]FloString, len(function.Object.Names)),
 				Instructions:  functionBody,
+				Environment:   env,
 			}
+			// object := Object{
+			// 	ConstantCount: uint32(len(temp_consts)),
+			// 	Constants:     make([]FloObject, len(temp_consts)),
+			// 	NameCount:     uint32(len(temp_names)),
+			// 	Names:         make([]FloString, len(temp_names)),
+			// 	Instructions:  functionBody,
+			// 	Environment:   env,
+			// }
 			f := FloCallable{
 				Name:   name,
 				Args:   params,
-				Object: object,
+				Object: &object,
 			}
+			env[0][name] = f
+
+			// copy(object.Constants, temp_consts)
+			// copy(object.Names, temp_names)
 			copy(object.Constants, function.Object.Constants)
 			copy(object.Names, function.Object.Names)
 			currentFrame.dataStack.Push(f)
 			continue
 		case CALL_FUNCTION:
+			// fmt.Println("len(callStack):", len(vm.callStack))
+			// start := time.Now()
 			// Check arity
+			// fmt.Println(currentFrame.dataStack)
 			f := currentFrame.dataStack.Pop().(FloCallable)
+			old_env := f.Object.Environment
+			f.Object.Environment = make([]map[FloString]FloObject, 1)
+			f.Object.Environment[0] = make(map[FloString]FloObject, 5)
+			f.Object.Environment[0][f.Name] = f
+			// fmt.Println(f)
+			// fmt.Println(f.Object)
+			// fmt.Println(f.Object.Environment)
 			params := int(instructions[i+1])
 
 			if len(f.Args) != params {
@@ -326,18 +439,27 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 
 			param_vals := []FloObject{}
 			for range f.Args {
+				// f.Object.Environment[]
 				param_vals = append([]FloObject{currentFrame.dataStack.Pop()}, param_vals...)
 			}
 
-			vm.funcCall(f.Name.String())
+			vm.funcCall(f)
 			currentFrame = vm.tos()
+
+			// f.Object.Environment = append(f.Object.Environment, make(map[FloString]FloObject, 5))
+			// f.Object.Environment[len(f.Object.Environment)-1][f.Name] = f
 
 			for i, arg := range f.Args {
 				// fmt.Println(arg, param_vals[i])
-				vm.storeVar(arg.(FloString), param_vals[i], currentFrame)
+				// x := currentFrame.dataStack.Pop()
+				// f.Object.Environment[arg.(FloString)] = x
+				vm.storeVar(arg.(FloString), param_vals[i], f)
 			}
 
-			function_return := vm.Run(f, param_vals)
+			function_return := vm.Run(f)
+
+			f.Object.Environment = old_env
+
 			vm.funcReturn()
 			currentFrame = vm.tos()
 			if function_return != nil {
@@ -345,7 +467,7 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 			} else {
 				currentFrame.dataStack.Push(FloNil{})
 			}
-			// fmt.Println(currentFrame.dataStack)
+			// fmt.Println("time taken:", time.Now().Sub(start))
 			continue
 		case RETURN:
 			// for _, call := range vm.callStack {
@@ -495,6 +617,8 @@ func (vm *VM) Run(function FloCallable, param_vals FloList) FloObject {
 			panic("Unknown instruction")
 		}
 	}
+	// vm.Debug(function.Object)
+	// fmt.Println("-----------")
 	return FloNil{}
 
 }
@@ -521,9 +645,9 @@ func (vm *VM) DecodeObjectInstructions(obj Object) {
 		case EXTENDED_ARG:
 			fmt.Printf("%d EXTENDED_ARG %d\n", i, instructions[i+1])
 		case PUSH_BLOCK:
-			fmt.Printf("%d EXTENDED_ARG %d\n", i, instructions[i+1])
+			fmt.Printf("%d PUSH_BLOCK %d\n", i, instructions[i+1])
 		case POP_BLOCK:
-			fmt.Printf("%d EXTENDED_ARG %d\n", i, instructions[i+1])
+			fmt.Printf("%d POP_BLOCK %d\n", i, instructions[i+1])
 		case BUILD_LIST:
 			param := vm.getParam(extended_arg, instructions[i+1], currentFrame)
 			fmt.Printf("%d BUILD_LIST %d\n", i, param)

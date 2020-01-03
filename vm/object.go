@@ -15,6 +15,8 @@ type Object struct {
 	Names         []FloString
 	Instructions  []byte
 	ObjectCode    []byte
+	Environment   []map[FloString]FloObject
+	Upvalues      map[FloString]FloObject
 }
 
 func (o *Object) getName(name FloString) (uint32, bool) {

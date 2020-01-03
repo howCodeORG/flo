@@ -101,8 +101,8 @@ func Start(in io.Reader, out io.Writer) {
 	var visitor compiler.FloVisitor
 	visitor.Init()
 	flovm := vm.VM{}
-	flovm.Init()
-
+	var previousEnvironment []map[vm.FloString]vm.FloObject = make([]map[vm.FloString]vm.FloObject, 1)
+	previousEnvironment[0] = make(map[vm.FloString]vm.FloObject, 5)
 	for {
 
 		input := prompt.Input(">> ", completer,
@@ -138,12 +138,16 @@ func Start(in io.Reader, out io.Writer) {
 
 		doEval(p, &visitor)
 
+		visitor.Object.Environment = previousEnvironment
+
 		f := vm.FloCallable{
 			Args:   ([]vm.FloObject{}),
-			Object: visitor.Object,
+			Object: &visitor.Object,
 			Name:   vm.FloString("main"),
 		}
-		flovm.Run(f, vm.FloList([]vm.FloObject{}))
+		flovm.Init(f)
+		flovm.Run(f)
+		previousEnvironment = visitor.Object.Environment
 		visitor.Object.Instructions = nil
 
 	}
@@ -151,11 +155,16 @@ func Start(in io.Reader, out io.Writer) {
 }
 
 func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println(r)
-		}
-	}()
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		fmt.Println(r)
+	// 	}
+	// }()
+	// defer profile.Start().Stop()
+	// defer profile.Start(profile.MemProfile, profile.ProfilePath(".")).Stop()
+
+	// debug.SetGCPercent(200)
+	// defer profile.Start(profile.MemProfile).Stop()
 
 	args := os.Args
 
@@ -166,7 +175,6 @@ func main() {
 
 		var visitor compiler.FloVisitor
 		flovm := vm.VM{}
-		flovm.Init()
 		visitor.Init()
 
 		file, err := os.Open(args[1])
@@ -201,10 +209,28 @@ func main() {
 		doEval(p, &visitor)
 		f := vm.FloCallable{
 			Args:   ([]vm.FloObject{}),
-			Object: visitor.Object,
+			Object: &visitor.Object,
 			Name:   vm.FloString("main"),
 		}
-		flovm.Run(f, vm.FloList([]vm.FloObject{}))
+		// f.Object.Environment = make(map[vm.FloString]vm.FloObject, 5)
+		// f.Object.Environment = make(map[vm.FloString]vm.FloObject, 5)
+		f.Object.Environment = make([]map[vm.FloString]vm.FloObject, 1)
+		f.Object.Environment[0] = make(map[vm.FloString]vm.FloObject, 5)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println("-- traceback --")
+					// for i, _ := range flovm.callStack {
+					// 	frame := flovm.callStack[i]
+					// 	fmt.Println(frame.name)
+					// }
+					fmt.Println(r)
+					// fmt.Println(string(debug.Stack()))
+				}
+			}()
+			flovm.Init(f)
+			flovm.Run(f)
+		}()
 
 	}
 }

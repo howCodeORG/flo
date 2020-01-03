@@ -1,0 +1,11 @@
+// Flo is dynamically typed
+x = 5 // x is an int
+y = true // x is not a bool
+
+// Lists can store any data type, including functions or other lists
+mylist = [1, 2, 3, 'hello world', true, false, ['nested list', 1,2,3]]
+print mylist // This will print my list
+f = func() {
+    print 'f is an anonymous function that was assigned to a variable'
+}
+f() // This will call f because functions are a first-class type

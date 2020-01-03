@@ -19,6 +19,7 @@ type FloVisitor struct {
 	environment []map[string]vm.FloObject
 	Error       bool
 	Object      vm.Object
+	AnonCount   int
 }
 
 func (v *FloVisitor) cleanup() {
@@ -312,6 +313,38 @@ func (v *FloVisitor) VisitFunc_decl(ctx *parser.Func_declContext) interface{} {
 
 	return nil
 
+}
+
+func (v *FloVisitor) VisitAnonFunc(ctx *parser.AnonFuncContext) interface{} {
+
+	name := "@" + strconv.Itoa(v.AnonCount)
+	v.AnonCount++
+
+	// Setup function sets gets the functions name.
+	v.Object.Compile_Setup_Function(vm.FloString(name))
+
+	// Setup parameters gets function parameters
+	params := v.Visit(ctx.Parameters())
+	if params == nil {
+		v.Object.Compile_Setup_Params(0)
+	} else {
+		v.Object.Compile_Setup_Params(params.(vm.FloInteger))
+	}
+
+	// Setup body collects all instructions that make up the function body
+	v.Object.Compile_Setup_Body()
+	v.Object.Compile_Push_Block()
+	v.Visit(ctx.Multi_stmts())
+	v.Object.Compile_Pop_Block()
+
+	// Make function uses the output of the previous instructions to create a FloCallable object.
+	v.Object.Compile_Make_Function()
+
+	// Store function in variable
+	v.Object.Compile_Store_Name(vm.FloString(name))
+
+	v.Object.Compile_Load_Name(vm.FloString(name))
+	return nil
 }
 
 // VisitParameters evaluates Flo callable parameters

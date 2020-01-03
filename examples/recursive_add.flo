@@ -1,0 +1,9 @@
+// This function implements addition using recursion
+func add(a,b) {
+    if a > 0 {
+        return add(a-1,b+1)
+    }
+    return b
+}
+
+print add(4,8) // Print 12

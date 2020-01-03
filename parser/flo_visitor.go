@@ -53,6 +53,9 @@ type FloVisitor interface {
 	// Visit a parse tree produced by FloParser#UnaryIncDec.
 	VisitUnaryIncDec(ctx *UnaryIncDecContext) interface{}
 
+	// Visit a parse tree produced by FloParser#AnonFunc.
+	VisitAnonFunc(ctx *AnonFuncContext) interface{}
+
 	// Visit a parse tree produced by FloParser#ReadIdentifier.
 	VisitReadIdentifier(ctx *ReadIdentifierContext) interface{}
 

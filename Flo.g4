@@ -96,7 +96,7 @@ for_stmt    : FOR for_clause_block
             ;
 
 func_decl   : FUNC IDENTIFIER '(' parameters? ')' '{' multi_stmts? '}'
-               ;
+            ;
 
 parameters  : IDENTIFIER ( ',' IDENTIFIER)*
             ;
@@ -118,6 +118,7 @@ block : '{' multi_stmts? '}'
 
 expression
    : '(' expression ')'                                      # ExpressionGroup
+   | FUNC '(' parameters? ')' '{' multi_stmts? '}'           # AnonFunc
    | expression '(' expression_list? ')'                     # CallExpression
    | expression '**' expression                              # Power
    | op=('+'|'-') expression                                 # Unary

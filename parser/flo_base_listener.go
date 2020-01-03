@@ -111,6 +111,12 @@ func (s *BaseFloListener) EnterUnaryIncDec(ctx *UnaryIncDecContext) {}
 // ExitUnaryIncDec is called when production UnaryIncDec is exited.
 func (s *BaseFloListener) ExitUnaryIncDec(ctx *UnaryIncDecContext) {}
 
+// EnterAnonFunc is called when production AnonFunc is entered.
+func (s *BaseFloListener) EnterAnonFunc(ctx *AnonFuncContext) {}
+
+// ExitAnonFunc is called when production AnonFunc is exited.
+func (s *BaseFloListener) ExitAnonFunc(ctx *AnonFuncContext) {}
+
 // EnterReadIdentifier is called when production ReadIdentifier is entered.
 func (s *BaseFloListener) EnterReadIdentifier(ctx *ReadIdentifierContext) {}
 

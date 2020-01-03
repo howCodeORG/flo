@@ -129,7 +129,7 @@ func (x FloList) TypeString() string {
 type FloCallable struct {
 	Args   FloList
 	Name   FloString
-	Object Object
+	Object *Object
 }
 
 func (x FloCallable) String() string {

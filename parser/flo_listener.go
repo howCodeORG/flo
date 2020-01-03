@@ -53,6 +53,9 @@ type FloListener interface {
 	// EnterUnaryIncDec is called when entering the UnaryIncDec production.
 	EnterUnaryIncDec(c *UnaryIncDecContext)
 
+	// EnterAnonFunc is called when entering the AnonFunc production.
+	EnterAnonFunc(c *AnonFuncContext)
+
 	// EnterReadIdentifier is called when entering the ReadIdentifier production.
 	EnterReadIdentifier(c *ReadIdentifierContext)
 
@@ -166,6 +169,9 @@ type FloListener interface {
 
 	// ExitUnaryIncDec is called when exiting the UnaryIncDec production.
 	ExitUnaryIncDec(c *UnaryIncDecContext)
+
+	// ExitAnonFunc is called when exiting the AnonFunc production.
+	ExitAnonFunc(c *AnonFuncContext)
 
 	// ExitReadIdentifier is called when exiting the ReadIdentifier production.
 	ExitReadIdentifier(c *ReadIdentifierContext)

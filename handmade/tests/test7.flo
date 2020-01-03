@@ -1,8 +1,0 @@
-
-if true == true
-    print "hello world"
-
-if false == true {
-    
-}
-print "Test"

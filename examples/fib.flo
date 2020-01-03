@@ -1,0 +1,29 @@
+// Recursive fibonacci function in Flo
+func fib(n) {
+    if n < 2 {
+        return n
+    } else {
+        return fib(n-1) + fib(n-2)
+    }
+}
+// Iterative fibonacci function in Flo (this version is much faster than the recursive one)
+func fibi(n) {
+    n--
+    if n < 0 {
+        return 0
+    }
+    f = 0
+    a = 0
+    b = 1
+    for i = 0; i <= n; i++ {
+        if a < 0 {
+            return 0
+        }
+        a = b
+        b = f
+        f = a+b
+    }
+    return f
+}
+print fibi(10) // Prints 55
+print fib(10) // Also prints 55

@@ -1,0 +1,12 @@
+x = 10
+y = 'hello world'
+
+// This code prints 'correct!' because the if and elif statement are false,
+// leaving only the else statement left.
+if x == y {
+    print 'incorrect'
+} elif x > 10 {
+    print 'also incorrect'
+} else {
+    print 'correct!'
+}

@@ -69,3 +69,37 @@ This will output
 ```
 55
 ```
+
+#### Flo bytecode
+Here's an example of the Flo bytecode produced by the compiler for the fibonacci function, that runs inside the virtual machine.
+```
+Instructions (text)    :
+0 SETUP_FUNCTION 0
+2 LOAD_CONST 'n' (0)
+4 SETUP_PARAMS 1
+6 SETUP_BODY 0
+8 PUSH_BLOCK 0
+10 LOAD_NAME 'n' (1)
+12 LOAD_CONST 2 (1)
+14 COMPARE 0
+16 POP_JUMP_IF_FALSE 8
+18 LOAD_NAME 'n' (1)
+20 RETURN 0
+22 JUMP 26
+24 LOAD_NAME 'n' (1)
+26 LOAD_CONST 1 (2)
+28 BINARY_SUB 0
+30 LOAD_NAME 'fib' (0)
+32 CALL_FUNCTION 1
+34 LOAD_NAME 'n' (1)
+36 LOAD_CONST 2 (1)
+38 BINARY_SUB 0
+40 LOAD_NAME 'fib' (0)
+42 CALL_FUNCTION 1
+44 BINARY_ADD 0
+46 RETURN 0
+48 POP_BLOCK 0
+50 MAKE_FUNCTION 0
+52 STORE_NAME 'fib' (0)
+Instructions (bytecode): [8 0 0 0 9 1 10 0 4 0 1 1 0 1 30 0 31 8 1 1 13 0 35 26 1 1 0 2 15 0 1 0 12 1 1 1 0 1 15 0 1 0 12 1 14 0 13 0 5 0 11 0 2 0]
+```

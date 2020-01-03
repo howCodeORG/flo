@@ -53,6 +53,7 @@ This will output:
 'f is an anonymous function that was assigned to a variable'
 ```
 #### Fibonacci
+Taken from `examples/fib.flo`
 ```
 // Recursive fibonacci function in Flo
 func  fib(n) {

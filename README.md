@@ -37,7 +37,7 @@ Taken from `examples/data_types.flo`
 ```
 // Flo is dynamically typed
 x  =  5  // x is an int
-y  =  true  // x is now a bool
+x  =  true  // x is now a bool
 
 // Lists can store any data type, including functions or other lists
 mylist  = [1, 2, 3, 'hello world', true, false, ['nested list', 1,2,3]]

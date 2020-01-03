@@ -12,9 +12,11 @@ You can compile Flo by typing:
 You'll most likely need to install some of Flo's dependencies namely
 
 ANTLR
+
 `go get github.com/antlr/antlr4/runtime/Go/antlr`
 
 and go-prompt
+
 `go get github.com/c-bata/go-prompt`
 
 If there are any dependencies I've forgotten about, go will tell you when you run `go build`.

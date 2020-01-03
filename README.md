@@ -71,9 +71,9 @@ This will output
 ```
 
 #### Flo bytecode
-Here's an example of the Flo bytecode produced by the compiler for the fibonacci function, that runs inside the virtual machine.
+Here's an example of the Flo bytecode produced by the compiler for the Fibonacci function. These are the actual instructions that run inside the virtual machine when you execute your program.
 ```
-Instructions (text)    :
+Instructions (disassembled):
 0 SETUP_FUNCTION 0
 2 LOAD_CONST 'n' (0)
 4 SETUP_PARAMS 1
@@ -101,5 +101,7 @@ Instructions (text)    :
 48 POP_BLOCK 0
 50 MAKE_FUNCTION 0
 52 STORE_NAME 'fib' (0)
-Instructions (bytecode): [8 0 0 0 9 1 10 0 4 0 1 1 0 1 30 0 31 8 1 1 13 0 35 26 1 1 0 2 15 0 1 0 12 1 1 1 0 1 15 0 1 0 12 1 14 0 13 0 5 0 11 0 2 0]
+Instructions (bytecode):
+8 0 0 0 9 1 10 0 4 0 1 1 0 1 30 0 31 8 1 1 13 0 35 26 1 1 0 
+2 15 0 1 0 12 1 1 1 0 1 15 0 1 0 12 1 14 0 13 0 5 0 11 0 2 0
 ```
